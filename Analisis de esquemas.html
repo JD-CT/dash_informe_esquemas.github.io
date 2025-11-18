@@ -1,0 +1,2193 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MINSA · Dashboard (Excel Integrado v4)</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <!-- Exportar a PDF (html2canvas + jsPDF) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+          integrity="sha512-BNa5lGqCqkW2C9JbN7u5lQxY0J4xA1lA9sLwJk+eHnW5S9o2mDqQ4k1d2k7nJk0tG1XH9k3Z8a8a7kz0GJ+8WQ=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"
+          integrity="sha512-/FqI4F7Y6R1L5Z9b8P0KzXkHx0bZpV3X9j1RTQ3h1G7M1Qw7/3d9b3s1g1LMQF3pTgQq2Q5TQ2/8r2yJbEw3xA=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+
+  <style>
+    :root{
+      --minsa-cyan:#26abd3;
+      --minsa-cyan-dark:#1a7a99;
+      --minsa-bg-light:#D4E9F0;
+      --white:#fff;
+      --muted:#6b7b80;
+      --radius:10px;
+      --shadow:0 8px 22px rgba(10,30,40,0.04);
+      --grid:rgba(20,40,50,0.04);
+    }
+    html,body{
+      margin:0;
+      height:100%;
+      font-family:Inter,"Segoe UI",Roboto,system-ui,-apple-system,"Helvetica Neue",Arial;
+      color:var(--minsa-cyan-dark);
+      background:linear-gradient(180deg,#f7fbfc,#fff);
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+    }
+    .topbar{
+      height:64px;
+      display:flex;
+      align-items:center;
+      gap:16px;
+      padding:0 20px;
+      color:var(--white);
+      background:linear-gradient(90deg,var(--minsa-cyan) 0%, #3dbde6 100%);
+      box-shadow:0 2px 6px rgba(38,171,211,.15);
+    }
+    .brand{
+      font-weight:700;
+      font-size:18px;
+      letter-spacing:.2px;
+    }
+    .wrap{
+      display:flex;
+      gap:18px;
+      padding:18px;
+      height:calc(100vh - 64px);
+    }
+    .sidebar{
+      width:300px;
+      min-width:240px;
+      padding:14px;
+      border-radius:var(--radius);
+      background:linear-gradient(180deg, rgba(212,233,240,.95), rgba(212,233,240,.85));
+      box-shadow:0 6px 18px rgba(10,30,40,.04);
+      overflow:auto;
+    }
+    .section-title{
+      font-weight:700;
+      margin:4px 0 10px 0;
+    }
+    .tabs .tab{
+      padding:10px;
+      border-radius:8px;
+      margin-bottom:6px;
+      cursor:pointer;
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+    }
+    .tabs .tab:hover{
+      transform:translateY(-2px);
+      box-shadow:0 6px 14px rgba(38,171,211,.12);
+    }
+    .tab.active{
+      background:linear-gradient(90deg, rgba(38,171,211,.15), rgba(38,171,211,.08));
+      border-left:4px solid var(--minsa-cyan);
+    }
+    .badge{
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      background:var(--white);
+      color:var(--minsa-cyan-dark);
+      box-shadow:0 1px 2px rgba(0,0,0,.04);
+    }
+    .main{
+      flex:1;
+      display:flex;
+      flex-direction:column;
+      gap:16px;
+    }
+    .row{
+      display:flex;
+      gap:16px;
+      align-items:stretch;
+    }
+    .card{
+      background:rgba(255,255,255,.85);
+      border-radius:var(--radius);
+      padding:18px;
+      box-shadow:var(--shadow);
+      flex:1;
+      min-height:120px;
+    }
+    .chart-title{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      margin-bottom:10px;
+    }
+    .btn{
+      background:var(--minsa-cyan);
+      color:var(--white);
+      border:none;
+      padding:8px 12px;
+      border-radius:8px;
+      cursor:pointer;
+      font-weight:600;
+      transition:all .2s;
+    }
+    .btn:hover{
+      background:#1a9bc4;
+      box-shadow:0 4px 12px rgba(38,171,211,.25);
+    }
+    .btn-secondary{
+      background:#fff;
+      color:#3b5560;
+      border:1px solid #e6eef1;
+    }
+    .btn-secondary.active{
+      background:var(--minsa-cyan);
+      color:#fff;
+      border-color:var(--minsa-cyan);
+    }
+    .text-muted{color:var(--muted);}
+    @media (max-width:900px){
+      .wrap{flex-direction:column;padding:12px;}
+      .sidebar{width:100%;order:2}
+      .main{order:1}
+    }
+
+    /* Listado de establecimientos */
+    .list-tools{
+      display:flex;
+      gap:8px;
+      align-items:center;
+      margin-bottom:10px;
+      flex-wrap:wrap
+    }
+    .est-list{
+      max-height:420px;
+      overflow:auto;
+      border-top:1px solid #edf3f6;
+    }
+    .est-item{
+      display:grid;
+      grid-template-columns:160px 1fr auto;
+      gap:12px;
+      align-items:center;
+      padding:10px 0;
+      border-bottom:1px solid #edf3f6;
+    }
+    .est-dd{
+      display:inline-block;
+      background:var(--minsa-bg-light);
+      color:var(--minsa-cyan-dark);
+      padding:6px 10px;
+      border-radius:999px;
+      font-weight:600;
+      font-size:12px;
+    }
+    .est-count{
+      font-weight:700;
+      color:var(--minsa-cyan);
+    }
+    .details{
+      padding:10px !important;
+      font-size:13px;
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">MINSA · Dashboard</div>
+    <div style="flex:1"></div>
+    <div style="opacity:.95;font-size:14px">Paleta: #26abd3</div>
+  </div>
+
+  <div class="wrap">
+    <aside class="sidebar">
+      <div class="section-title">Hojas del Excel</div>
+      <div id="sheetTabs" class="tabs"></div>
+      <div class="text-muted" style="font-size:13px;margin-top:10px">
+        Consejo: Haz clic en una barra para ver solo sus establecimientos.
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="row">
+        <section class="card" style="flex:2.2">
+          <div class="chart-title">
+            <h3 id="chartTitle" style="margin:0">Esquemas por DIRIS</h3>
+            <div style="display:flex;gap:8px;align-items:center">
+              <select id="chartType" onchange="updateChartType()" class="btn-secondary" style="padding:6px;border-radius:8px;">
+                <option value="bar">Barras</option>
+                <option value="horizontalBar">Barras horizontales</option>
+                <option value="line">Línea</option>
+              </select>
+              <button class="btn" id="exportPdfBtn">Exportar PDF</button>
+            </div>
+          </div>
+          <div id="chartBox" style="position:relative">
+            <canvas id="mainChart"></canvas>
+          </div>
+        </section>
+
+        <section class="card details" style="flex:.7">
+          <h4 style="margin:0 0 6px 0;font-size:15px">Detalles</h4>
+          <div id="detailBox" class="text-muted">Selecciona una hoja o una barra.</div>
+        </section>
+      </div>
+
+      <section class="card">
+        <div class="chart-title">
+          <h3 style="margin:0">Listado de Establecimientos</h3>
+          <div class="list-tools">
+            <input id="estSearch" placeholder="Buscar establecimiento..."
+                   style="padding:6px 10px;border-radius:8px;border:1px solid #e6eef1;">
+            <button class="btn-secondary active" id="sortCount">Ordenar por cantidad</button>
+            <button class="btn-secondary" id="sortDiris">Ordenar por DIRIS (A–Z)</button>
+            <button class="btn-secondary active" id="btnAll">Todos</button>
+            <button class="btn-secondary" id="btnOnlySelected">Solo DIRIS seleccionado</button>
+          </div>
+        </div>
+        <div class="est-list" id="estList"></div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+    /* ==== DATOS COMPLETOS DESDE Analisis_Esquemas_Condiciones_anom (2).xlsx ==== */
+    const DATA = {
+      "sheets": [
+        {
+          "name": "esquema_no_vigente",
+          "has_dd": true,
+          "has_ee": true,
+          "has_esquema_vigente": true,
+          "chart": {
+            "labels": [
+              "LIMA CENTRO",
+              "LORETO",
+              "LIMA SUR",
+              "PIURA",
+              "LA LIBERTAD",
+              "CUSCO",
+              "AMAZONAS",
+              "LAMBAYEQUE",
+              "ICA",
+              "LIMA NORTE",
+              "TACNA",
+              "JUNIN",
+              "LIMA ESTE",
+              "UCAYALI",
+              "LIMA",
+              "SAN MARTIN",
+              "HUANUCO",
+              "AREQUIPA",
+              "MADRE DE DIOS",
+              "PUNO",
+              "ANCASH",
+              "APURIMAC",
+              "CALLAO",
+              "HUANCAVELICA",
+              "AYACUCHO",
+              "CAJAMARCA",
+              "MOQUEGUA",
+              "PASCO",
+              "TUMBES"
+            ],
+            "values": [
+              116,
+              63,
+              37,
+              25,
+              19,
+              17,
+              15,
+              14,
+              13,
+              13,
+              13,
+              6,
+              6,
+              6,
+              5,
+              5,
+              4,
+              3,
+              3,
+              3,
+              2,
+              2,
+              2,
+              2,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          "establishments": [
+            {
+              "dd_nombre": "AMAZONAS",
+              "ee_nombre": "GALILEA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "AMAZONAS",
+              "ee_nombre": "HUAMPAMI",
+              "count": 7
+            },
+            {
+              "dd_nombre": "AMAZONAS",
+              "ee_nombre": "IMAZA",
+              "count": 4
+            },
+            {
+              "dd_nombre": "AMAZONAS",
+              "ee_nombre": "KIGKIS",
+              "count": 1
+            },
+            {
+              "dd_nombre": "AMAZONAS",
+              "ee_nombre": "URAKUSA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "ANCASH",
+              "ee_nombre": "HOSPITAL LA CALETA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "APURIMAC",
+              "ee_nombre": "HOSPITAL REGIONAL GUILLERMO DIAZ DE LA VEGA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "APURIMAC",
+              "ee_nombre": "HOSPITAL SUBREGIONAL DE ANDAHUAYLAS",
+              "count": 1
+            },
+            {
+              "dd_nombre": "AREQUIPA",
+              "ee_nombre": "HOSPITAL DE CAMANA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "AREQUIPA",
+              "ee_nombre": "HOSPITAL REGIONAL HONORIO DELGADO ESPINOZA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "AYACUCHO",
+              "ee_nombre": "HOSPITAL DE APOYO DE HUANTA DANIEL ALCIDES CARRIÓN",
+              "count": 1
+            },
+            {
+              "dd_nombre": "CAJAMARCA",
+              "ee_nombre": "LOS SAUCES",
+              "count": 1
+            },
+            {
+              "dd_nombre": "CALLAO",
+              "ee_nombre": "HOSPITAL DE VENTANILLA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "CALLAO",
+              "ee_nombre": "HOSPITAL SAN JOSE",
+              "count": 1
+            },
+            {
+              "dd_nombre": "CUSCO",
+              "ee_nombre": "HOSPITAL DE APOYO DEPARTAMENTAL CUSCO",
+              "count": 14
+            },
+            {
+              "dd_nombre": "CUSCO",
+              "ee_nombre": "PAMPAPHALLA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "CUSCO",
+              "ee_nombre": "QUILLABAMBA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "HUANCAVELICA",
+              "ee_nombre": "HOSPITAL DEPARTAMENTAL DE HUANCAVELICA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "HUANUCO",
+              "ee_nombre": "AUCAYACU",
+              "count": 1
+            },
+            {
+              "dd_nombre": "HUANUCO",
+              "ee_nombre": "HOSPITAL DE TINGO MARIA (HOSPITAL DE CONTINGENCIA)",
+              "count": 1
+            },
+            {
+              "dd_nombre": "HUANUCO",
+              "ee_nombre": "HOSPITAL REGIONAL HERMILIO VALDIZAN",
+              "count": 1
+            },
+            {
+              "dd_nombre": "HUANUCO",
+              "ee_nombre": "PERU-COREA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "ICA",
+              "ee_nombre": "HOSPITAL REGIONAL DE ICA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "ICA",
+              "ee_nombre": "HOSPITAL SAN JOSE DE CHINCHA",
+              "count": 11
+            },
+            {
+              "dd_nombre": "ICA",
+              "ee_nombre": "SAN JUAN DE DIOS",
+              "count": 1
+            },
+            {
+              "dd_nombre": "JUNIN",
+              "ee_nombre": "DE APOYO MANUEL HIGA ARAKAKI",
+              "count": 2
+            },
+            {
+              "dd_nombre": "JUNIN",
+              "ee_nombre": "HOSPITAL REGIONAL DOCENTE CLINICO QUIRURGICO DANIEL ALCIDES CARRION",
+              "count": 3
+            },
+            {
+              "dd_nombre": "JUNIN",
+              "ee_nombre": "SAN MARTIN DE PANGOA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LA LIBERTAD",
+              "ee_nombre": "HOSPITAL BELEN DE TRUJILLO",
+              "count": 7
+            },
+            {
+              "dd_nombre": "LA LIBERTAD",
+              "ee_nombre": "HOSPITAL DISTRITAL LAREDO",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LA LIBERTAD",
+              "ee_nombre": "HOSPITAL PROVINCIAL ASCOPE ROSA SANCHEZ DE SANTILLAN",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LA LIBERTAD",
+              "ee_nombre": "LOS GRANADOS \"SAGRADO CORAZON\"",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LA LIBERTAD",
+              "ee_nombre": "REGIONAL DOCENTE DE TRUJILLO",
+              "count": 9
+            },
+            {
+              "dd_nombre": "LAMBAYEQUE",
+              "ee_nombre": "C.S.PUEBLO NUEVO",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LAMBAYEQUE",
+              "ee_nombre": "HOSPITAL REFERENCIAL FERREÐAFE",
+              "count": 3
+            },
+            {
+              "dd_nombre": "LAMBAYEQUE",
+              "ee_nombre": "HOSPITAL REGIONAL DOCENTE LAS MERCEDES",
+              "count": 6
+            },
+            {
+              "dd_nombre": "LAMBAYEQUE",
+              "ee_nombre": "HOSPITAL REGIONAL LAMBAYEQUE",
+              "count": 3
+            },
+            {
+              "dd_nombre": "LAMBAYEQUE",
+              "ee_nombre": "TORIBIA CASTRO CHIRINOS",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA",
+              "ee_nombre": "HOSPITAL GENERAL DE HUACHO",
+              "count": 3
+            },
+            {
+              "dd_nombre": "LIMA",
+              "ee_nombre": "HOSPITAL REZOLA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "ASOCIACION CIVIL IMPACTA SALUD Y EDUCACION SEDE SAN MIGUEL",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "CENTRO DE SALUD MATERNO INFANTIL MAGDALENA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "HOGAR SAN CAMILO",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "HOSPITAL DE APOYO SANTA ROSA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "HOSPITAL NACIONAL ARZOBISPO LOAYZA",
+              "count": 59
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "HOSPITAL NACIONAL DOCENTE MADRE NIÐO SAN BARTOLOME",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "HOSPITAL SAN JUAN DE LURIGANCHO",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "INMENSA",
+              "count": 3
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "INSTITUTO NACIONAL DE ENFERMEDADES NEOPLASICAS",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "INSTITUTO NACIONAL DE SALUD DEL NIÐO",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "NACIONAL DOS DE MAYO",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "VIA LIBRE",
+              "count": 42
+            },
+            {
+              "dd_nombre": "LIMA ESTE",
+              "ee_nombre": "HOSPITAL NACIONAL HIPOLITO UNANUE",
+              "count": 6
+            },
+            {
+              "dd_nombre": "LIMA NORTE",
+              "ee_nombre": "CENTRO MATERNO INFANTIL SANTA LUZMILA II",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA NORTE",
+              "ee_nombre": "CENTRO MATERNO INFANTIL TAHUANTINSUYO BAJO",
+              "count": 3
+            },
+            {
+              "dd_nombre": "LIMA NORTE",
+              "ee_nombre": "HOSPITAL CARLOS LANFRANCO LA HOZ",
+              "count": 6
+            },
+            {
+              "dd_nombre": "LIMA NORTE",
+              "ee_nombre": "HOSPITAL SERGIO E. BERNALES",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA NORTE",
+              "ee_nombre": "MEXICO",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LIMA SUR",
+              "ee_nombre": "ASOCIACION CIVIL IMPACTA SALUD Y EDUCACION",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LIMA SUR",
+              "ee_nombre": "HOSPITAL MARIA AUXILIADORA",
+              "count": 35
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "ASOCIACIÓN CIVIL SELVA AMAZÓNICA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "C.S. I-4 REQUENA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "C.S. I-4 SAN LORENZO",
+              "count": 3
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "CABALLOCOCHA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "CENTRO DE ATENCIÓN IQUITOS - AHF PERU",
+              "count": 8
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "CENTRO DE SALUD I-4 ORELLANA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "CERITS-SAN JUAN",
+              "count": 3
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "HOSPITAL II-I CONTAMANA",
+              "count": 4
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "HOSPITAL IQUITOS CESAR GARAYAR GARCIA",
+              "count": 5
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "HOSPITAL REGIONAL DE LORETO FELIPE SANTIAGO ARRIOLA IGLESIAS",
+              "count": 17
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "NAUTA - NUCLEO BASE",
+              "count": 17
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "VILLA TROMPETEROS",
+              "count": 1
+            },
+            {
+              "dd_nombre": "MADRE DE DIOS",
+              "ee_nombre": "HOSPITAL SANTA ROSA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "MADRE DE DIOS",
+              "ee_nombre": "SAN MARTIN DE PORRES DE IBERIA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "MOQUEGUA",
+              "ee_nombre": "HOSPITAL REGIONAL DE MOQUEGUA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "PASCO",
+              "ee_nombre": "ERNESTO GERMAN GUZMÁN GONZALES",
+              "count": 1
+            },
+            {
+              "dd_nombre": "PIURA",
+              "ee_nombre": "CENTRO DE SALUD TALARA II",
+              "count": 1
+            },
+            {
+              "dd_nombre": "PIURA",
+              "ee_nombre": "E.S. SAN JOSE",
+              "count": 1
+            },
+            {
+              "dd_nombre": "PIURA",
+              "ee_nombre": "HOSPITAL DE APOYO II - 1 NUESTRA SEÐORA DE LAS MERCEDES - PAITA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "PIURA",
+              "ee_nombre": "HOSPITAL DE APOYO II - 2 SULLANA",
+              "count": 7
+            },
+            {
+              "dd_nombre": "PIURA",
+              "ee_nombre": "HOSPITAL DE LA AMISTAD PERU - COREA SANTA ROSA II-2",
+              "count": 14
+            },
+            {
+              "dd_nombre": "PUNO",
+              "ee_nombre": "CARLOS MONJE MEDRANO",
+              "count": 2
+            },
+            {
+              "dd_nombre": "PUNO",
+              "ee_nombre": "METROPOLITANO PUNO",
+              "count": 1
+            },
+            {
+              "dd_nombre": "SAN MARTIN",
+              "ee_nombre": "HOSPITAL II-1 DR. JOSE PEÐA PORTUGUEZ - TOCACHE",
+              "count": 2
+            },
+            {
+              "dd_nombre": "SAN MARTIN",
+              "ee_nombre": "HOSPITAL II-1 MOYOBAMBA - DR. SEGUNDO RODOLFO PÉREZ NIETO",
+              "count": 1
+            },
+            {
+              "dd_nombre": "SAN MARTIN",
+              "ee_nombre": "HOSPITAL RURAL NUEVA CAJAMARCA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "SAN MARTIN",
+              "ee_nombre": "MORALES",
+              "count": 1
+            },
+            {
+              "dd_nombre": "TACNA",
+              "ee_nombre": "HOSPITAL HIPOLITO UNANUE DE TACNA",
+              "count": 13
+            },
+            {
+              "dd_nombre": "TUMBES",
+              "ee_nombre": "HOSPITAL REGIONAL JOSE ALFREDO MENDOZA OLAVARRIA JAMO II-2",
+              "count": 1
+            },
+            {
+              "dd_nombre": "UCAYALI",
+              "ee_nombre": "ATALAYA",
+              "count": 4
+            },
+            {
+              "dd_nombre": "UCAYALI",
+              "ee_nombre": "HOSPITAL REGIONAL DE PUCALLPA",
+              "count": 2
+            }
+          ]
+        },
+        {
+          "name": "personalizado_no_orden_adultos",
+          "has_dd": true,
+          "has_ee": true,
+          "has_esquema_vigente": false,
+          "chart": {
+            "labels": [
+              "LIMA CENTRO",
+              "LIMA NORTE",
+              "LIMA SUR",
+              "CALLAO",
+              "LIMA ESTE",
+              "ICA",
+              "LA LIBERTAD",
+              "LAMBAYEQUE",
+              "AREQUIPA",
+              "LIMA",
+              "JUNIN",
+              "PIURA",
+              "CUSCO",
+              "UCAYALI",
+              "ANCASH",
+              "TACNA",
+              "HUANUCO",
+              "SAN MARTIN",
+              "LORETO",
+              "MOQUEGUA",
+              "AYACUCHO",
+              "CAJAMARCA",
+              "MADRE DE DIOS",
+              "APURIMAC",
+              "PASCO",
+              "TUMBES",
+              "AMAZONAS",
+              "PUNO"
+            ],
+            "values": [
+              639,
+              341,
+              187,
+              170,
+              162,
+              102,
+              83,
+              73,
+              53,
+              48,
+              29,
+              25,
+              24,
+              24,
+              20,
+              17,
+              16,
+              15,
+              13,
+              11,
+              7,
+              6,
+              4,
+              3,
+              3,
+              2,
+              1,
+              1
+            ]
+          },
+          "establishments": [
+            {
+              "dd_nombre": "AMAZONAS",
+              "ee_nombre": "HOSPITAL REGIONAL VIRGEN DE FATIMA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "ANCASH",
+              "ee_nombre": "CENTRO DE SALUD LA VICTORIA",
+              "count": 3
+            },
+            {
+              "dd_nombre": "ANCASH",
+              "ee_nombre": "HOSPITAL \"VICTOR RAMOS GUARDIA\" - HUARAZ",
+              "count": 3
+            },
+            {
+              "dd_nombre": "ANCASH",
+              "ee_nombre": "HOSPITAL LA CALETA",
+              "count": 14
+            },
+            {
+              "dd_nombre": "APURIMAC",
+              "ee_nombre": "HOSPITAL REGIONAL GUILLERMO DIAZ DE LA VEGA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "APURIMAC",
+              "ee_nombre": "HOSPITAL SUBREGIONAL DE ANDAHUAYLAS",
+              "count": 1
+            },
+            {
+              "dd_nombre": "AREQUIPA",
+              "ee_nombre": "HOSPITAL DE CAMANA",
+              "count": 5
+            },
+            {
+              "dd_nombre": "AREQUIPA",
+              "ee_nombre": "HOSPITAL GOYENECHE",
+              "count": 21
+            },
+            {
+              "dd_nombre": "AREQUIPA",
+              "ee_nombre": "HOSPITAL REGIONAL HONORIO DELGADO ESPINOZA",
+              "count": 27
+            },
+            {
+              "dd_nombre": "AYACUCHO",
+              "ee_nombre": "HOSPITAL DE APOYO DE CORACORA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "AYACUCHO",
+              "ee_nombre": "HOSPITAL REGIONAL DE AYACUCHO MIGUEL ANGEL MARISCAL LLERENA",
+              "count": 6
+            },
+            {
+              "dd_nombre": "CAJAMARCA",
+              "ee_nombre": "DE APOYO CELENDIN",
+              "count": 1
+            },
+            {
+              "dd_nombre": "CAJAMARCA",
+              "ee_nombre": "HOSPITAL GENERAL DE JAEN",
+              "count": 2
+            },
+            {
+              "dd_nombre": "CAJAMARCA",
+              "ee_nombre": "LA TULPUNA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "CAJAMARCA",
+              "ee_nombre": "SAN PABLO",
+              "count": 1
+            },
+            {
+              "dd_nombre": "CALLAO",
+              "ee_nombre": "CENTRO DE SALUD ALBERTO BARTON",
+              "count": 5
+            },
+            {
+              "dd_nombre": "CALLAO",
+              "ee_nombre": "HOSPITAL DE VENTANILLA",
+              "count": 8
+            },
+            {
+              "dd_nombre": "CALLAO",
+              "ee_nombre": "HOSPITAL SAN JOSE",
+              "count": 47
+            },
+            {
+              "dd_nombre": "CALLAO",
+              "ee_nombre": "NAC. DANIEL A. CARRION",
+              "count": 110
+            },
+            {
+              "dd_nombre": "CUSCO",
+              "ee_nombre": "ANTONIO LORENA DEL CUSCO",
+              "count": 20
+            },
+            {
+              "dd_nombre": "CUSCO",
+              "ee_nombre": "HOSPITAL DE APOYO DEPARTAMENTAL CUSCO",
+              "count": 4
+            },
+            {
+              "dd_nombre": "HUANUCO",
+              "ee_nombre": "CENTRO DE SALUD APARICIO POMARES",
+              "count": 1
+            },
+            {
+              "dd_nombre": "HUANUCO",
+              "ee_nombre": "CODO DEL POZUZO",
+              "count": 1
+            },
+            {
+              "dd_nombre": "HUANUCO",
+              "ee_nombre": "HOSPITAL DE TINGO MARIA (HOSPITAL DE CONTINGENCIA)",
+              "count": 5
+            },
+            {
+              "dd_nombre": "HUANUCO",
+              "ee_nombre": "HOSPITAL REGIONAL HERMILIO VALDIZAN",
+              "count": 8
+            },
+            {
+              "dd_nombre": "HUANUCO",
+              "ee_nombre": "PERU-COREA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "ICA",
+              "ee_nombre": "HOSPITAL REGIONAL DE ICA",
+              "count": 89
+            },
+            {
+              "dd_nombre": "ICA",
+              "ee_nombre": "HOSPITAL SAN JOSE DE CHINCHA",
+              "count": 6
+            },
+            {
+              "dd_nombre": "ICA",
+              "ee_nombre": "LA TINGUIÐA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "ICA",
+              "ee_nombre": "SAN JUAN DE DIOS",
+              "count": 4
+            },
+            {
+              "dd_nombre": "ICA",
+              "ee_nombre": "SANTA MARIA DEL SOCORRO",
+              "count": 1
+            },
+            {
+              "dd_nombre": "JUNIN",
+              "ee_nombre": "DE APOYO FELIX MAYORCA SOTO",
+              "count": 2
+            },
+            {
+              "dd_nombre": "JUNIN",
+              "ee_nombre": "DE APOYO MANUEL HIGA ARAKAKI",
+              "count": 1
+            },
+            {
+              "dd_nombre": "JUNIN",
+              "ee_nombre": "HOSPITAL REGIONAL DOCENTE CLINICO QUIRURGICO DANIEL ALCIDES CARRION",
+              "count": 21
+            },
+            {
+              "dd_nombre": "JUNIN",
+              "ee_nombre": "HOSPITAL REGIONAL DOCENTE DE MEDICINA TROPICAL DR. JULIO CESAR DEMARINI CARO",
+              "count": 3
+            },
+            {
+              "dd_nombre": "JUNIN",
+              "ee_nombre": "HOSPITAL REGIONAL DOCENTE MATERNO INFANTIL EL CARMEN",
+              "count": 1
+            },
+            {
+              "dd_nombre": "JUNIN",
+              "ee_nombre": "PUERTO OCOPA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LA LIBERTAD",
+              "ee_nombre": "ALTO TRUJILLO",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LA LIBERTAD",
+              "ee_nombre": "HOSPITAL BELEN DE TRUJILLO",
+              "count": 11
+            },
+            {
+              "dd_nombre": "LA LIBERTAD",
+              "ee_nombre": "HOSPITAL DE APOYO CHEPEN",
+              "count": 3
+            },
+            {
+              "dd_nombre": "LA LIBERTAD",
+              "ee_nombre": "HOSPITAL DE APOYO TOMAS LAFORA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LA LIBERTAD",
+              "ee_nombre": "HOSPITAL DISTRITAL LAREDO",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LA LIBERTAD",
+              "ee_nombre": "HOSPITAL PROVINCIAL ASCOPE ROSA SANCHEZ DE SANTILLAN",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LA LIBERTAD",
+              "ee_nombre": "REGIONAL DOCENTE DE TRUJILLO",
+              "count": 62
+            },
+            {
+              "dd_nombre": "LA LIBERTAD",
+              "ee_nombre": "SANTA LUCIA DE MOCHE",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LAMBAYEQUE",
+              "ee_nombre": "C.S.PUEBLO NUEVO",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LAMBAYEQUE",
+              "ee_nombre": "HOSPITAL REFERENCIAL FERREÐAFE",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LAMBAYEQUE",
+              "ee_nombre": "HOSPITAL REGIONAL DOCENTE LAS MERCEDES",
+              "count": 15
+            },
+            {
+              "dd_nombre": "LAMBAYEQUE",
+              "ee_nombre": "HOSPITAL REGIONAL LAMBAYEQUE",
+              "count": 44
+            },
+            {
+              "dd_nombre": "LAMBAYEQUE",
+              "ee_nombre": "JOSE OLAYA",
+              "count": 3
+            },
+            {
+              "dd_nombre": "LAMBAYEQUE",
+              "ee_nombre": "PEDRO PABLO ATUSPARIAS",
+              "count": 7
+            },
+            {
+              "dd_nombre": "LIMA",
+              "ee_nombre": "HOSPITAL DE BARRANCA",
+              "count": 4
+            },
+            {
+              "dd_nombre": "LIMA",
+              "ee_nombre": "HOSPITAL DE CHANCAY Y SBS DR. HIDALGO ATOCHE LÓPEZ",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LIMA",
+              "ee_nombre": "HOSPITAL GENERAL DE HUACHO",
+              "count": 11
+            },
+            {
+              "dd_nombre": "LIMA",
+              "ee_nombre": "HOSPITAL REZOLA",
+              "count": 11
+            },
+            {
+              "dd_nombre": "LIMA",
+              "ee_nombre": "HOSPITAL SAN JUAN BAUTISTA HUARAL",
+              "count": 17
+            },
+            {
+              "dd_nombre": "LIMA",
+              "ee_nombre": "PEDRO ABRAHAM LOPEZ GUILLEN",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA",
+              "ee_nombre": "SAN VICENTE",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "10 DE OCTUBRE",
+              "count": 6
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "AHF WELLNESS CENTER LIMA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "ASOCIACION CIVIL IMPACTA SALUD Y EDUCACION SEDE SAN MIGUEL",
+              "count": 6
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "CAJA DE AGUA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "CENTRO DE SALUD GANIMEDES",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "CENTRO DE SALUD LINCE",
+              "count": 6
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "CENTRO DE SALUD MATERNO INFANTIL MAGDALENA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "CENTRO DE SALUD MATERNO INFANTIL SURQUILLO",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "CENTRO DE SALUD MAX ARIAS SCHREIBER",
+              "count": 8
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "CENTRO DE SALUD SAN LUIS",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "CENTRO DE SALUD VILLA MARIA PERPETUO SOCORRO",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "CENTRO ESPECIALIZADO DE REFERENCIA DE ITSS Y VIH/SIDA RAUL PATRUCCO PUIG",
+              "count": 6
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "EL PORVENIR",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "HOGAR SAN CAMILO",
+              "count": 10
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "HOSPITAL DE APOYO SANTA ROSA",
+              "count": 84
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "HOSPITAL NACIONAL ARZOBISPO LOAYZA",
+              "count": 128
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "HOSPITAL NACIONAL DOCENTE MADRE NIÐO SAN BARTOLOME",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "HOSPITAL SAN JUAN DE LURIGANCHO",
+              "count": 39
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "HUASCAR XV",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "INMENSA",
+              "count": 22
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "INSTITUTO NACIONAL DE CIENCIAS NEUROLOGICAS",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "INSTITUTO NACIONAL DE ENFERMEDADES NEOPLASICAS",
+              "count": 11
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "INSTITUTO NACIONAL DE SALUD DEL NIÐO",
+              "count": 10
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "JAIME ZUBIETA",
+              "count": 3
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "NACIONAL DOS DE MAYO",
+              "count": 168
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "VIA LIBRE",
+              "count": 115
+            },
+            {
+              "dd_nombre": "LIMA ESTE",
+              "ee_nombre": "FORTALEZA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA ESTE",
+              "ee_nombre": "HOSPITAL DE LIMA ESTE -VITARTE",
+              "count": 3
+            },
+            {
+              "dd_nombre": "LIMA ESTE",
+              "ee_nombre": "HOSPITAL DE MEDIANA COMPLEJIDAD JOSE AGURTO TELLO",
+              "count": 12
+            },
+            {
+              "dd_nombre": "LIMA ESTE",
+              "ee_nombre": "HOSPITAL NACIONAL HIPOLITO UNANUE",
+              "count": 131
+            },
+            {
+              "dd_nombre": "LIMA ESTE",
+              "ee_nombre": "MADRE TERESA CALCUTA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LIMA ESTE",
+              "ee_nombre": "MICAELA BASTIDAS",
+              "count": 11
+            },
+            {
+              "dd_nombre": "LIMA ESTE",
+              "ee_nombre": "POLICLINICO SOCIOS EN SALUD",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LIMA NORTE",
+              "ee_nombre": "CAQUETA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA NORTE",
+              "ee_nombre": "CENTRO DE SALUD LAURA CALLER",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA NORTE",
+              "ee_nombre": "CENTRO DE SALUD VILLA ESTELA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA NORTE",
+              "ee_nombre": "CENTRO MATERNO INFANTIL LOS SUREÑOS",
+              "count": 3
+            },
+            {
+              "dd_nombre": "LIMA NORTE",
+              "ee_nombre": "CENTRO MATERNO INFANTIL TAHUANTINSUYO BAJO",
+              "count": 6
+            },
+            {
+              "dd_nombre": "LIMA NORTE",
+              "ee_nombre": "HOSPITAL CARLOS LANFRANCO LA HOZ",
+              "count": 28
+            },
+            {
+              "dd_nombre": "LIMA NORTE",
+              "ee_nombre": "HOSPITAL NACIONAL CAYETANO HEREDIA",
+              "count": 267
+            },
+            {
+              "dd_nombre": "LIMA NORTE",
+              "ee_nombre": "HOSPITAL SERGIO E. BERNALES",
+              "count": 27
+            },
+            {
+              "dd_nombre": "LIMA NORTE",
+              "ee_nombre": "MEXICO",
+              "count": 7
+            },
+            {
+              "dd_nombre": "LIMA SUR",
+              "ee_nombre": "ASOCIACION CIVIL IMPACTA SALUD Y EDUCACION",
+              "count": 29
+            },
+            {
+              "dd_nombre": "LIMA SUR",
+              "ee_nombre": "CENTRO DE SALUD SAN JUAN DE MIRAFLORES",
+              "count": 5
+            },
+            {
+              "dd_nombre": "LIMA SUR",
+              "ee_nombre": "CENTRO MATERNO INFANTIL JUAN PABLO II",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA SUR",
+              "ee_nombre": "CENTRO MATERNO INFANTIL SAN JOSE",
+              "count": 75
+            },
+            {
+              "dd_nombre": "LIMA SUR",
+              "ee_nombre": "HOSPITAL DE EMERGENCIAS VILLA EL SALVADOR",
+              "count": 21
+            },
+            {
+              "dd_nombre": "LIMA SUR",
+              "ee_nombre": "HOSPITAL MARIA AUXILIADORA",
+              "count": 56
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "C.S. I-4 PAMPA HERMOZA DE YURIMAGUAS",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "CENTRO DE ATENCIÓN IQUITOS - AHF PERU",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "HOSPITAL II-1 SANTA CLOTILDE",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "HOSPITAL IQUITOS CESAR GARAYAR GARCIA",
+              "count": 5
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "HOSPITAL REGIONAL DE LORETO FELIPE SANTIAGO ARRIOLA IGLESIAS",
+              "count": 4
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "NAUTA - NUCLEO BASE",
+              "count": 1
+            },
+            {
+              "dd_nombre": "MADRE DE DIOS",
+              "ee_nombre": "HOSPITAL SANTA ROSA",
+              "count": 4
+            },
+            {
+              "dd_nombre": "MOQUEGUA",
+              "ee_nombre": "C.S. ALTO ILO",
+              "count": 8
+            },
+            {
+              "dd_nombre": "MOQUEGUA",
+              "ee_nombre": "HOSPITAL REGIONAL DE MOQUEGUA",
+              "count": 3
+            },
+            {
+              "dd_nombre": "PASCO",
+              "ee_nombre": "ERNESTO GERMAN GUZMÁN GONZALES",
+              "count": 1
+            },
+            {
+              "dd_nombre": "PASCO",
+              "ee_nombre": "PUERTO BERMUDEZ",
+              "count": 2
+            },
+            {
+              "dd_nombre": "PIURA",
+              "ee_nombre": "ACLAS LOS ALGARROBOS",
+              "count": 1
+            },
+            {
+              "dd_nombre": "PIURA",
+              "ee_nombre": "CENTRO DE SALUD COMUNIDAD SALUDABLE",
+              "count": 2
+            },
+            {
+              "dd_nombre": "PIURA",
+              "ee_nombre": "CENTRO DE SALUD TALARA II",
+              "count": 3
+            },
+            {
+              "dd_nombre": "PIURA",
+              "ee_nombre": "E.S II-1 HOSPITAL CHULUCANAS",
+              "count": 1
+            },
+            {
+              "dd_nombre": "PIURA",
+              "ee_nombre": "E.S. MICAELA BASTIDAS",
+              "count": 1
+            },
+            {
+              "dd_nombre": "PIURA",
+              "ee_nombre": "E.S. SAN JOSE",
+              "count": 1
+            },
+            {
+              "dd_nombre": "PIURA",
+              "ee_nombre": "HOSPITAL DE APOYO II - 1 NUESTRA SEÐORA DE LAS MERCEDES - PAITA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "PIURA",
+              "ee_nombre": "HOSPITAL DE APOYO II - 2 SULLANA",
+              "count": 6
+            },
+            {
+              "dd_nombre": "PIURA",
+              "ee_nombre": "HOSPITAL DE LA AMISTAD PERU - COREA SANTA ROSA II-2",
+              "count": 8
+            },
+            {
+              "dd_nombre": "PUNO",
+              "ee_nombre": "CARLOS MONJE MEDRANO",
+              "count": 1
+            },
+            {
+              "dd_nombre": "SAN MARTIN",
+              "ee_nombre": "HOSPITAL DE RIOJA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "SAN MARTIN",
+              "ee_nombre": "HOSPITAL II-1 MOYOBAMBA - DR. SEGUNDO RODOLFO PÉREZ NIETO",
+              "count": 4
+            },
+            {
+              "dd_nombre": "SAN MARTIN",
+              "ee_nombre": "HOSPITAL II-E JUANJUI - MC LUIS IZQUIERDO VÁSQUEZ",
+              "count": 2
+            },
+            {
+              "dd_nombre": "SAN MARTIN",
+              "ee_nombre": "HOSPITAL RURAL SAN JOSE DE SISA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "SAN MARTIN",
+              "ee_nombre": "HOSPITAL TARAPOTO",
+              "count": 6
+            },
+            {
+              "dd_nombre": "TACNA",
+              "ee_nombre": "HOSPITAL HIPOLITO UNANUE DE TACNA",
+              "count": 17
+            },
+            {
+              "dd_nombre": "TUMBES",
+              "ee_nombre": "HOSPITAL REGIONAL JOSE ALFREDO MENDOZA OLAVARRIA JAMO II-2",
+              "count": 2
+            },
+            {
+              "dd_nombre": "UCAYALI",
+              "ee_nombre": "7 DE JUNIO",
+              "count": 1
+            },
+            {
+              "dd_nombre": "UCAYALI",
+              "ee_nombre": "9 DE OCTUBRE",
+              "count": 4
+            },
+            {
+              "dd_nombre": "UCAYALI",
+              "ee_nombre": "AGUAYTIA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "UCAYALI",
+              "ee_nombre": "ATALAYA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "UCAYALI",
+              "ee_nombre": "HOSPITAL AMAZONICO - YARINACOCHA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "UCAYALI",
+              "ee_nombre": "HOSPITAL REGIONAL DE PUCALLPA",
+              "count": 11
+            },
+            {
+              "dd_nombre": "UCAYALI",
+              "ee_nombre": "MONTE ALEGRE-NESHUYA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "UCAYALI",
+              "ee_nombre": "PURUS",
+              "count": 2
+            },
+            {
+              "dd_nombre": "UCAYALI",
+              "ee_nombre": "SAN FERNANDO",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "name": "personalizado_no_orden_0a3",
+          "has_dd": true,
+          "has_ee": true,
+          "has_esquema_vigente": false,
+          "chart": {
+            "labels": [
+              "LIMA CENTRO",
+              "LIMA ESTE",
+              "ICA",
+              "AMAZONAS",
+              "LIMA SUR",
+              "LORETO",
+              "PIURA",
+              "ANCASH",
+              "CAJAMARCA",
+              "CALLAO",
+              "HUANUCO",
+              "LA LIBERTAD",
+              "LIMA NORTE",
+              "MADRE DE DIOS",
+              "MOQUEGUA",
+              "UCAYALI"
+            ],
+            "values": [
+              14,
+              4,
+              3,
+              2,
+              2,
+              2,
+              2,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          "establishments": [
+            {
+              "dd_nombre": "AMAZONAS",
+              "ee_nombre": "GALILEA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "ANCASH",
+              "ee_nombre": "HOSPITAL LA CALETA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "CAJAMARCA",
+              "ee_nombre": "SAN MIGUEL",
+              "count": 1
+            },
+            {
+              "dd_nombre": "CALLAO",
+              "ee_nombre": "NAC. DANIEL A. CARRION",
+              "count": 1
+            },
+            {
+              "dd_nombre": "HUANUCO",
+              "ee_nombre": "HOSPITAL DE TINGO MARIA (HOSPITAL DE CONTINGENCIA)",
+              "count": 1
+            },
+            {
+              "dd_nombre": "ICA",
+              "ee_nombre": "HOSPITAL REGIONAL DE ICA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "ICA",
+              "ee_nombre": "SANTA MARIA DEL SOCORRO",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LA LIBERTAD",
+              "ee_nombre": "REGIONAL DOCENTE DE TRUJILLO",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "INSTITUTO NACIONAL DE SALUD DEL NIÐO",
+              "count": 14
+            },
+            {
+              "dd_nombre": "LIMA ESTE",
+              "ee_nombre": "CHANCAS DE ANDAHUAYLAS",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA ESTE",
+              "ee_nombre": "HOSPITAL NACIONAL HIPOLITO UNANUE",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA ESTE",
+              "ee_nombre": "MADRE TERESA CALCUTA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LIMA NORTE",
+              "ee_nombre": "HOSPITAL NACIONAL CAYETANO HEREDIA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA SUR",
+              "ee_nombre": "HOSPITAL MARIA AUXILIADORA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "C.S. I-3 SARAMIRIZA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "HOSPITAL REGIONAL DE LORETO FELIPE SANTIAGO ARRIOLA IGLESIAS",
+              "count": 1
+            },
+            {
+              "dd_nombre": "MADRE DE DIOS",
+              "ee_nombre": "HOSPITAL SANTA ROSA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "MOQUEGUA",
+              "ee_nombre": "HOSPITAL REGIONAL DE MOQUEGUA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "PIURA",
+              "ee_nombre": "E.S II-1 HOSPITAL CHULUCANAS",
+              "count": 1
+            },
+            {
+              "dd_nombre": "PIURA",
+              "ee_nombre": "HOSPITAL DE LA AMISTAD PERU - COREA SANTA ROSA II-2",
+              "count": 1
+            },
+            {
+              "dd_nombre": "UCAYALI",
+              "ee_nombre": "HOSPITAL AMAZONICO - YARINACOCHA",
+              "count": 1
+            }
+          ]
+        },
+        {
+          "name": "personalizado_no_orden_4a17",
+          "has_dd": true,
+          "has_ee": true,
+          "has_esquema_vigente": false,
+          "chart": {
+            "labels": [
+              "LIMA CENTRO",
+              "LIMA NORTE",
+              "UCAYALI",
+              "LA LIBERTAD",
+              "ICA",
+              "MADRE DE DIOS",
+              "AMAZONAS",
+              "AREQUIPA",
+              "CAJAMARCA",
+              "LAMBAYEQUE",
+              "LORETO",
+              "AYACUCHO",
+              "LIMA ESTE",
+              "LIMA SUR",
+              "SAN MARTIN",
+              "CALLAO",
+              "CUSCO",
+              "HUANUCO",
+              "MOQUEGUA",
+              "PIURA"
+            ],
+            "values": [
+              50,
+              8,
+              7,
+              6,
+              5,
+              5,
+              3,
+              3,
+              3,
+              3,
+              3,
+              2,
+              2,
+              2,
+              2,
+              1,
+              1,
+              1,
+              1,
+              1
+            ]
+          },
+          "establishments": [
+            {
+              "dd_nombre": "AMAZONAS",
+              "ee_nombre": "GALILEA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "AMAZONAS",
+              "ee_nombre": "NIEVA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "AREQUIPA",
+              "ee_nombre": "HOSPITAL REGIONAL HONORIO DELGADO ESPINOZA",
+              "count": 3
+            },
+            {
+              "dd_nombre": "AYACUCHO",
+              "ee_nombre": "CENTRO DE SALUD LLOCHEGUA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "AYACUCHO",
+              "ee_nombre": "HOSPITAL REGIONAL DE AYACUCHO MIGUEL ANGEL MARISCAL LLERENA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "CAJAMARCA",
+              "ee_nombre": "HOSPITAL GENERAL DE JAEN",
+              "count": 3
+            },
+            {
+              "dd_nombre": "CALLAO",
+              "ee_nombre": "NAC. DANIEL A. CARRION",
+              "count": 1
+            },
+            {
+              "dd_nombre": "CUSCO",
+              "ee_nombre": "HOSPITAL DE APOYO DEPARTAMENTAL CUSCO",
+              "count": 1
+            },
+            {
+              "dd_nombre": "HUANUCO",
+              "ee_nombre": "HOSPITAL REGIONAL HERMILIO VALDIZAN",
+              "count": 1
+            },
+            {
+              "dd_nombre": "ICA",
+              "ee_nombre": "HOSPITAL REGIONAL DE ICA",
+              "count": 4
+            },
+            {
+              "dd_nombre": "ICA",
+              "ee_nombre": "HOSPITAL SAN JOSE DE CHINCHA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LA LIBERTAD",
+              "ee_nombre": "REGIONAL DOCENTE DE TRUJILLO",
+              "count": 6
+            },
+            {
+              "dd_nombre": "LAMBAYEQUE",
+              "ee_nombre": "HOSPITAL REGIONAL DOCENTE LAS MERCEDES",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LAMBAYEQUE",
+              "ee_nombre": "HOSPITAL REGIONAL LAMBAYEQUE",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "CENTRO ESPECIALIZADO DE REFERENCIA DE ITSS Y VIH/SIDA RAUL PATRUCCO PUIG",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "HOSPITAL DE APOYO SANTA ROSA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "HOSPITAL NACIONAL ARZOBISPO LOAYZA",
+              "count": 3
+            },
+            {
+              "dd_nombre": "LIMA CENTRO",
+              "ee_nombre": "INSTITUTO NACIONAL DE SALUD DEL NIÐO",
+              "count": 45
+            },
+            {
+              "dd_nombre": "LIMA ESTE",
+              "ee_nombre": "HOSPITAL NACIONAL HIPOLITO UNANUE",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LIMA NORTE",
+              "ee_nombre": "HOSPITAL NACIONAL CAYETANO HEREDIA",
+              "count": 5
+            },
+            {
+              "dd_nombre": "LIMA NORTE",
+              "ee_nombre": "HOSPITAL SERGIO E. BERNALES",
+              "count": 3
+            },
+            {
+              "dd_nombre": "LIMA SUR",
+              "ee_nombre": "HOSPITAL MARIA AUXILIADORA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "HOSPITAL IQUITOS CESAR GARAYAR GARCIA",
+              "count": 2
+            },
+            {
+              "dd_nombre": "LORETO",
+              "ee_nombre": "HOSPITAL REGIONAL DE LORETO FELIPE SANTIAGO ARRIOLA IGLESIAS",
+              "count": 1
+            },
+            {
+              "dd_nombre": "MADRE DE DIOS",
+              "ee_nombre": "HOSPITAL SANTA ROSA",
+              "count": 5
+            },
+            {
+              "dd_nombre": "MOQUEGUA",
+              "ee_nombre": "HOSPITAL REGIONAL DE MOQUEGUA",
+              "count": 1
+            },
+            {
+              "dd_nombre": "PIURA",
+              "ee_nombre": "HOSPITAL DE LA AMISTAD PERU - COREA SANTA ROSA II-2",
+              "count": 1
+            },
+            {
+              "dd_nombre": "SAN MARTIN",
+              "ee_nombre": "HOSPITAL TARAPOTO",
+              "count": 2
+            },
+            {
+              "dd_nombre": "UCAYALI",
+              "ee_nombre": "HOSPITAL AMAZONICO - YARINACOCHA",
+              "count": 4
+            },
+            {
+              "dd_nombre": "UCAYALI",
+              "ee_nombre": "HOSPITAL REGIONAL DE PUCALLPA",
+              "count": 3
+            }
+          ]
+        }
+      ]
+    };
+
+    const pal = { main:'#26abd3', dark:'#1a7a99', grid:'rgba(20,40,50,0.04)' };
+    function shadeColor(hex, percent) {
+      const f = parseInt(hex.slice(1),16), t = percent<0?0:255, p=Math.abs(percent)/100;
+      const R = Math.round((t-(f>>16))*p)+(f>>16);
+      const G = Math.round((t-((f>>8)&255))*p)+((f>>8)&255);
+      const B = Math.round((t-(f&255))*p)+(f&255);
+      return "#"+(0x10000+(R<<16)+(G<<8)+B).toString(16).slice(1);
+    }
+
+    let currentSheetIndex = 0;
+    let chartType = 'bar';
+    let mainChart = null;
+    let selectedDiris = null;
+    let estSortMode = 'count'; // 'count' | 'dd'
+
+    // Plugin: etiquetas SIEMPRE fuera de las barras
+    const valueLabelsPlugin = {
+      id:'valueLabels',
+      afterDatasetsDraw(chart){
+        const {ctx} = chart;
+        const indexAxis = chart.options.indexAxis || 'x';
+        const ds = chart.data.datasets[0];
+        const meta = chart.getDatasetMeta(0);
+        ctx.save();
+        ctx.font = 'bold 11px Inter, Arial';
+        ctx.fillStyle = pal.dark;
+
+        meta.data.forEach((bar,i)=>{
+          const val = ds.data[i];
+          if(val == null) return;
+          const p = bar.getProps(['x','y','base','width','height'], true);
+
+          if(indexAxis === 'y'){ // horizontal
+            const x1 = Math.max(p.base, p.x);
+            const y = p.y;
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(String(val), x1 + 8, y);
+          }else{ // vertical
+            const yTop = Math.min(p.base, p.y);
+            const x = p.x;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'bottom';
+            ctx.fillText(String(val), x, yTop - 4);
+          }
+        });
+        ctx.restore();
+      }
+    };
+
+    function renderTabs(){
+      const box = document.getElementById('sheetTabs');
+      box.innerHTML = '';
+      DATA.sheets.forEach((s, i)=>{
+        const total = s.chart?.values?.reduce((a,b)=>a+b,0) || 0;
+        const el = document.createElement('div');
+        el.className = 'tab' + (i===currentSheetIndex ? ' active':'');
+        el.innerHTML = `<div>${s.name}</div><div class="badge">${total}</div>`;
+        el.onclick = ()=> { currentSheetIndex = i; selectedDiris=null; renderTabs(); loadSheet(); };
+        box.appendChild(el);
+      });
+    }
+
+    function calcChartHeight(labels){
+      const perBar = 24; const padding = 120;
+      return Math.max(300, perBar * labels.length + padding);
+    }
+
+    function drawMain(labels, values){
+      const canvas = document.getElementById('mainChart');
+      const preferHorizontal = labels.length > 12 || chartType === 'horizontalBar';
+      const indexAxis = preferHorizontal ? 'y' : (chartType==='line'?'x':'x');
+      canvas.height = preferHorizontal ? calcChartHeight(labels) : 360;
+
+      if(mainChart) mainChart.destroy();
+      const bg = labels.map(l=> l.toUpperCase()==='LIMA CENTRO' ? pal.main : shadeColor(pal.main,-12));
+      const border = bg.map(()=> pal.dark);
+
+      mainChart = new Chart(canvas.getContext('2d'), {
+        type: chartType==='line' ? 'line' : 'bar',
+        data: {
+          labels,
+          datasets: [{
+            label:'Total',
+            data: values,
+            backgroundColor: chartType==='line' ? 'transparent' : bg,
+            borderColor: chartType==='line' ? pal.main : border,
+            borderWidth: 1,
+            borderRadius: chartType==='line' ? 0 : 8,
+            barPercentage: 0.56,
+            categoryPercentage: 0.8,
+            tension: 0.35,
+            fill: false
+          }]
+        },
+        options: {
+          indexAxis,
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins:{
+            legend:{display:false},
+            tooltip:{
+              backgroundColor:'#fff',
+              titleColor:pal.dark,
+              bodyColor:pal.dark,
+              borderColor:pal.main,
+              borderWidth:1,
+              padding:10,
+              boxPadding:6
+            },
+            valueLabels:{}
+          },
+          scales:{
+            x:{
+              grid:{ color: pal.grid },
+              ticks:{ color: pal.dark, autoSkip:false, maxRotation:0 }
+            },
+            y:{
+              beginAtZero:true,
+              grid:{ color: pal.grid },
+              ticks:{ color: pal.dark, autoSkip:false }
+            }
+          },
+          onClick:(evt, elements)=>{
+            if(elements.length>0){
+              const idx = elements[0].index;
+              selectedDiris = labels[idx];
+              renderEstablishments();
+              setPillState('btnOnlySelected', true);
+              setPillState('btnAll', false);
+            }
+          }
+        },
+        plugins:[valueLabelsPlugin]
+      });
+
+      document.getElementById('chartTitle').textContent =
+        `Esquemas por DIRIS — ${DATA.sheets[currentSheetIndex].name}`;
+      document.getElementById('detailBox').innerHTML =
+        `<div><strong>DIRIS visibles:</strong> ${labels.length}</div>
+         <div class="text-muted" style="margin-top:4px">Clic en una barra para filtrar establecimientos.</div>`;
+    }
+
+    function updateChartType(){
+      chartType = document.getElementById('chartType').value;
+      const s = DATA.sheets[currentSheetIndex];
+      drawMain(s.chart?.labels || [], s.chart?.values || []);
+    }
+
+    function setPillState(id, active){
+      const el = document.getElementById(id);
+      if(active) el.classList.add('active'); else el.classList.remove('active');
+    }
+
+    // Listado de establecimientos: usa SOLO los de la hoja actual
+    function renderEstablishments(){
+      const s = DATA.sheets[currentSheetIndex];
+      const listBox = document.getElementById('estList');
+      const q = (document.getElementById('estSearch').value || '').trim().toLowerCase();
+
+      let rows = (s.establishments || []).slice();
+
+      if(selectedDiris){
+        rows = rows.filter(r => String(r.dd_nombre).toUpperCase() === String(selectedDiris).toUpperCase());
+      }
+      if(q){
+        rows = rows.filter(r => String(r.ee_nombre).toLowerCase().includes(q));
+      }
+
+      if(estSortMode === 'count'){
+        rows.sort((a,b)=> b.count - a.count || a.dd_nombre.localeCompare(b.dd_nombre));
+      }else{
+        rows.sort((a,b)=> a.dd_nombre.localeCompare(b.dd_nombre) || b.count - a.count);
+      }
+
+      listBox.innerHTML = '';
+      if(rows.length === 0){
+        listBox.innerHTML = `<div class="text-muted" style="padding:8px 0">Sin resultados para el filtro actual.</div>`;
+        return;
+      }
+      const frag = document.createDocumentFragment();
+      rows.forEach(r=>{
+        const el = document.createElement('div');
+        el.className = 'est-item';
+        el.innerHTML = `
+          <div class="est-dd">${r.dd_nombre}</div>
+          <div>${r.ee_nombre}</div>
+          <div class="est-count">${r.count}</div>
+        `;
+        frag.appendChild(el);
+      });
+      listBox.appendChild(frag);
+    }
+
+    // Botones listado
+    document.getElementById('sortCount').addEventListener('click', ()=>{
+      estSortMode = 'count';
+      setPillState('sortCount', true); setPillState('sortDiris', false);
+      renderEstablishments();
+    });
+    document.getElementById('sortDiris').addEventListener('click', ()=>{
+      estSortMode = 'dd';
+      setPillState('sortDiris', true); setPillState('sortCount', false);
+      renderEstablishments();
+    });
+    document.getElementById('btnAll').addEventListener('click', ()=>{
+      selectedDiris = null;
+      renderEstablishments();
+      setPillState('btnAll', true); setPillState('btnOnlySelected', false);
+    });
+    document.getElementById('btnOnlySelected').addEventListener('click', ()=>{
+      if(!selectedDiris){ selectedDiris = 'LIMA CENTRO'; }
+      renderEstablishments();
+      setPillState('btnOnlySelected', true); setPillState('btnAll', false);
+    });
+    document.getElementById('estSearch').addEventListener('input', renderEstablishments);
+
+    // Exportar a PDF
+    async function exportToPDF() {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4'
+      });
+
+      const title = `Esquemas por DIRIS — ${DATA.sheets[currentSheetIndex].name}`;
+      pdf.setFontSize(16);
+      pdf.text(title, 20, 20);
+
+      const canvas = await html2canvas(document.getElementById('chartBox'), {
+        scale: 3,
+        backgroundColor: '#ffffff'
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const marginX = 20;
+      const marginTop = 30;
+      const imgWidth = pageWidth - marginX * 2;
+      const imgHeight = canvas.height * imgWidth / canvas.width;
+
+      pdf.addImage(imgData, 'PNG', marginX, marginTop, imgWidth, imgHeight);
+      pdf.save(`dashboard_${DATA.sheets[currentSheetIndex].name}.pdf`);
+    }
+
+    document.getElementById('exportPdfBtn').addEventListener('click', exportToPDF);
+
+    function loadSheet(){
+      selectedDiris = null;
+      const s = DATA.sheets[currentSheetIndex];
+      const labels = s.chart?.labels || [];
+      const values = s.chart?.values || [];
+      drawMain(labels, values);
+      renderEstablishments();
+      setPillState('btnAll', true);
+      setPillState('btnOnlySelected', false);
+      setPillState('sortCount', true);
+      setPillState('sortDiris', false);
+    }
+
+    function init(){
+      renderTabs();
+      loadSheet();
+    }
+    init();
+  </script>
+</body>
+</html>
