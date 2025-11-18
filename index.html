@@ -71,22 +71,21 @@
   <script>
     /* ===========================
        Lista de páginas (añade aquí)
-       Cada objeto:
-         - id: identificador único (sin espacios)
-         - label: texto del botón
-         - file: ruta relativa al archivo HTML
-         - primary (opt): true para estilo destacado
-         - newTab (opt): true si debe abrir por defecto en nueva pestaña
-         - default (opt): true si quieres que se cargue al abrir index
+       - id: identificador único (sin espacios)
+       - label: texto del botón
+       - file: ruta relativa al archivo HTML (evita espacios en nombres de archivo)
+       - primary (opt): true para estilo destacado
+       - newTab (opt): true para abrir por defecto en nueva pestaña
+       - default (opt): true para cargar al abrir index
        ============================ */
     const PAGES = [
-      {id:'Análisis de esquemas', label:'Analisis de esquemas', file:'Analisis de esquemas.html'}, primary:true, default:true},
-      {id:'Información de coinfección TB/vih', label:'Información de coinfección TB/vih', file:'Información de coinfección TB/vih.html'},
-      {id:'Solicitud de abandonos', label:'Solicitud de abandonos', file:'Solicitud de abandonos.html', 
-      {id:'', label:'', file:'.html'},
-      {id:'', label:'', file:'.html'},
-      {id:'', label:'', file:'.html'},
-      {id:'', label:'', file:'.html'}
+      { id: 'analisis_esquemas', label: 'Analisis de esquemas', file: 'analisis_esquemas.html', primary: true, default: true },
+      { id: 'coinfeccion_tb_vih', label: 'Información de coinfección TB/vih', file: 'informacion_coinfeccion_tb_vih.html' },
+      { id: 'solicitud_abandonos', label: 'Solicitud de abandonos', file: 'solicitud_abandonos.html' },
+      { id: 'resumen_pvv', label: 'Resumen general de PVV', file: 'resumen_pvv.html' },
+      { id: 'esquemas_observados', label: 'Esquemas de tratamiento observados', file: 'esquemas_observados.html' },
+      { id: 'reg_pendientes', label: 'Registros pendientes de actualización', file: 'registros_pendientes.html' },
+      { id: 'pvv_nacionalidad', label: 'PVV según nacionalidad', file: 'pvv_nacionalidad.html' }
     ];
 
     const menuGrid = document.getElementById('menuGrid');
@@ -100,62 +99,52 @@
     // Genera botones a partir del array PAGES
     function buildMenu(){
       menuGrid.innerHTML = '';
-      PAGES.forEach(p=>{
+      PAGES.forEach(p => {
         const btn = document.createElement('div');
         btn.className = 'menu-btn' + (p.primary ? ' primary' : '');
         btn.textContent = p.label;
         btn.dataset.file = p.file;
         btn.dataset.id = p.id;
         if(p.newTab) btn.dataset.newtab = '1';
-        btn.addEventListener('click', ()=> loadPage(p.id));
+        btn.addEventListener('click', () => loadPage(p.id));
         menuGrid.appendChild(btn);
       });
     }
 
     // Carga la página en el iframe o en nueva pestaña si newTab === true
     function loadPage(id){
-      const page = PAGES.find(x=>x.id===id);
+      const page = PAGES.find(x => x.id === id);
       if(!page) return;
       // actualizar UI active
-      document.querySelectorAll('.menu-btn').forEach(b=>b.classList.toggle('active', b.dataset.id === id));
+      document.querySelectorAll('.menu-btn').forEach(b => b.classList.toggle('active', b.dataset.id === id));
       currentPageId = id;
       currentLabel.textContent = page.label;
       currentPath.textContent = page.file;
       if(page.newTab){
         window.open(page.file, '_blank');
-      }else{
+      } else {
         iframe.src = page.file;
       }
     }
 
     // botón "Abrir en nueva pestaña" abre la página seleccionada o la por defecto
-    openInNew.addEventListener('click', ()=>{
-      const page = PAGES.find(x=>x.id===currentPageId) || PAGES.find(x=>x.default) || PAGES[0];
+    openInNew.addEventListener('click', () => {
+      const page = PAGES.find(x => x.id === currentPageId) || PAGES.find(x => x.default) || PAGES[0];
       if(page) window.open(page.file, '_blank');
     });
 
     // Inicialización
     buildMenu();
     // Cargar la default (si existe)
-    const defaultPage = PAGES.find(x=>x.default) || PAGES[0];
+    const defaultPage = PAGES.find(x => x.default) || PAGES[0];
     if(defaultPage) loadPage(defaultPage.id);
 
     /* ===========================
-       Consejos para añadir una página:
-       - Crea el archivo HTML (por ejemplo: nueva_pagina.html)
-       - Añade un objeto en el array PAGES:
-         { id:'nueva_pagina', label:'Titulo botón', file:'nueva_pagina.html' }
-       - Si quieres que aparezca destacado: añade primary:true
-       - Si quieres que abra en nueva pestaña por defecto: newTab:true
-       - Si quieres que se cargue al abrir el index: default:true
-       - Si tus archivos están en subcarpeta, coloca file:'dashboards/mi_dashboard.html'
-       ============================ */
-
-    /* ===========================
-       Nota Chart.js:
-       La configuración global en este documento NO se aplica dentro del iframe.
-       Si tus dashboards usan Chart.js y quieres los mismos defaults, copia
-       el bloque de configuración Chart.js dentro del <script> de cada dashboard HTML.
+       Consejos rápidos:
+       - Nombres de archivo: evita espacios y caracteres especiales (usar guiones o guion_bajo).
+       - Añadir página: insertar nuevo objeto en PAGES con id único.
+       - Si pones default:true en una página, se cargará al abrir index.
+       - Si tus dashboards están en subcarpetas, especifica file:'dashboards/nombre.html'
        ============================ */
   </script>
 </body>
