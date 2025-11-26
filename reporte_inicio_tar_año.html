@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MINSA · Inicios TAR por año (Integrado - Dinámico)</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    :root{--minsa-cyan:#26abd3;--minsa-cyan-dark:#1a7a99;--minsa-bg-light:#D4E9F0;--white:#fff;--muted:#6b7b80;--radius:10px;--shadow:0 8px 22px rgba(10,30,40,0.04);--grid:rgba(20,40,50,0.04);} 
+    html,body{margin:0;min-height:100%;font-family:Inter,"Segoe UI",Roboto,system-ui,-apple-system,"Helvetica Neue",Arial;font-size:16px;color:var(--minsa-cyan-dark);background:linear-gradient(180deg,#f7fbfc,#fff);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;overflow-y:auto;} 
+    .topbar{height:64px;display:flex;align-items:center;gap:16px;padding:0 20px;color:var(--white);background:linear-gradient(90deg,var(--minsa-cyan) 0%, #3dbde6 100%);box-shadow:0 2px 6px rgba(38,171,211,.15);} 
+    .brand{font-weight:700;font-size:18px;letter-spacing:.2px;} 
+    .wrap{display:flex;gap:18px;padding:18px;height:auto;min-height:calc(100vh - 64px);box-sizing:border-box;overflow-y:auto;} 
+    .sidebar{width:300px;min-width:240px;padding:14px;border-radius:var(--radius);background:linear-gradient(180deg, rgba(212,233,240,.96), rgba(212,233,240,.88));box-shadow:0 6px 18px rgba(10,30,40,.04);overflow:auto;} 
+    .section-title{font-weight:700;margin:4px 0 10px 0;font-size:15px;} 
+    .stat-grid{display:grid;grid-template-columns:1fr;gap:8px;margin-bottom:14px;} 
+    .stat-card{padding:10px 12px;border-radius:8px;background:rgba(255,255,255,0.9);box-shadow:0 3px 10px rgba(10,30,40,0.04);} 
+    .stat-label{font-size:12px;color:var(--muted);margin-bottom:2px;} 
+    .stat-value{font-size:18px;font-weight:700;color:var(--minsa-cyan-dark);} 
+    .stat-chip{font-size:12px;display:inline-block;margin-top:4px;padding:2px 8px;border-radius:999px;background:var(--minsa-bg-light);color:var(--minsa-cyan-dark);} 
+    .main{flex:1;display:flex;flex-direction:column;gap:16px;overflow:visible;} 
+    .row{display:flex;gap:16px;align-items:stretch;} 
+    .card{background:rgba(255,255,255,0.88);border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);flex:1;min-height:120px;box-sizing:border-box;} 
+    .chart-title{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;} 
+    .card h3{margin:0;font-size:18px;} 
+    .details{padding:10px !important;font-size:13px;} 
+    .btn-secondary{background:#fff;color:#3b5560;border:1px solid #e6eef1;padding:6px 8px;border-radius:8px;cursor:pointer;font-size:13px;} 
+    .text-muted{color:var(--muted);} 
+    .pill-group{display:flex;gap:8px;flex-wrap:wrap;align-items:center;} 
+    .table-scroll{max-height:260px;overflow:auto;border-top:1px solid #edf3f6;margin-top:8px;} 
+    table{width:100%;border-collapse:collapse;font-size:13px;} th,td{padding:6px 6px;text-align:right;border-bottom:1px solid #edf3f6;white-space:nowrap;} th:first-child, td:first-child{text-align:left;} tr.highlight{background:linear-gradient(90deg, rgba(38,171,211,0.08), rgba(38,171,211,0.02));border-left:4px solid var(--minsa-cyan);} 
+    .chart-pane{flex:1;min-width:240px;position:relative;height:800px;}
+    .chart-pane canvas{ width:100% !important; height:100% !important; display:block; } 
+    .footer-debug{font-family:monospace;font-size:13px;color:#234; margin-top:8px; background:#f4fbff;padding:8px;border-radius:8px;border:1px solid #e6f6fb;max-width:420px;}
+    @media (max-width:1000px){.wrap{flex-direction:column;padding:12px;height:auto;min-height:auto}.sidebar{width:100%;order:2}.main{order:1}.row{flex-direction:column}.chart-pane{height:600px}} 
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">MINSA · Dashboard Inicios TAR por año</div>
+    <div style="flex:1"></div>
+    <div style="opacity:.95;font-size:14px">Estilo MINSA Cyan · 2019–2025</div>
+  </div>
+
+  <div class="wrap">
+    <aside class="sidebar">
+      <div class="section-title">Resumen nacional</div>
+      <div class="stat-grid" id="summaryCards"></div>
+      <div class="section-title">Ayuda</div>
+      <div class="text-muted" style="font-size:13px;line-height:1.45;">
+        • Selecciona un año para actualizar gráficos y tabla.<br>
+        • LIMA CENTRO se prioriza y se resalta en la tabla.<br>
+        • Gráfico principal muestra todas las DIRIS en una vista.<br>
+      </div>
+    </aside>
+
+    <main class="main">
+      <div class="row">
+        <section class="card" style="flex:2.2;">
+          <div class="chart-title">
+            <h3 id="mainTitle">Inicios TAR por DIRIS · Año <span id="yearLabel"></span></h3>
+            <div class="pill-group">
+              <label style="font-size:13px;color:var(--muted);">Año:&nbsp;
+                <select id="yearSelect" class="btn-secondary"></select>
+              </label>
+              <select id="chartType" class="btn-secondary" title="Tipo de gráfico">
+                <option value="horizontalBar">Barras horizontales</option>
+                <option value="bar">Barras verticales</option>
+                <option value="line">Línea</option>
+              </select>
+            </div>
+          </div>
+          <div id="chartBox" class="chart-pane">
+            <canvas id="mainChart"></canvas>
+          </div>
+        </section>
+
+        <section class="card details" style="flex:1;">
+          <h4 style="margin:0 0 6px 0;font-size:15px">Detalle por DIRIS</h4>
+          <div id="detailBox" class="text-muted">Selecciona una barra del gráfico para ver detalle.</div>
+        </section>
+      </div>
+
+      <div class="row">
+        <section class="card" style="flex:1.4;">
+          <div class="chart-title">
+            <h3 style="margin:0">Tendencia anual (2019–2025)</h3>
+          </div>
+          <div style="position:relative;height:320px;">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </section>
+
+        <section class="card" style="flex:1;">
+          <div class="chart-title">
+            <h3 id="dirisTitle" style="margin:0">DIRIS · Año seleccionado</h3>
+          </div>
+          <div class="table-scroll">
+            <table id="regionTable">
+              <thead>
+                <tr>
+                  <th>DIRIS</th>
+                  <th>Inicios TAR</th>
+                  <th>% nacional</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+          <div id="tableFooter" class="footer-debug" aria-live="polite"></div>
+        </section>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // --- Datos (ejemplo integrado). Reemplaza por carga real si es necesario ---
+    const RAW_DATA = {
+      years: [2019,2020,2021,2022,2023,2024,2025],
+      year_counts: [9945,7356,10424,13214,10870,10827,8471],
+      diris_by_year: {
+        "2019":[{"diris":"LIMA CENTRO","count":2582},{"diris":"LIMA NORTE","count":1041},{"diris":"LIMA SUR","count":711},{"diris":"LORETO","count":660},{"diris":"CALLAO","count":566},{"diris":"LA LIBERTAD","count":435},{"diris":"LIMA ESTE","count":426},{"diris":"LAMBAYEQUE","count":382},{"diris":"AREQUIPA","count":345},{"diris":"PIURA","count":341},{"diris":"ICA","count":336},{"diris":"UCAYALI","count":333},{"diris":"LIMA","count":213},{"diris":"JUNIN","count":193},{"diris":"SAN MARTIN","count":190},{"diris":"ANCASH","count":167},{"diris":"AMAZONAS","count":154},{"diris":"CUSCO","count":152},{"diris":"TACNA","count":104},{"diris":"MADRE DE DIOS","count":92},{"diris":"HUANUCO","count":90},{"diris":"CAJAMARCA","count":85},{"diris":"TUMBES","count":76},{"diris":"PUNO","count":66},{"diris":"AYACUCHO","count":61},{"diris":"MOQUEGUA","count":55},{"diris":"APURIMAC","count":43},{"diris":"PASCO","count":25},{"diris":"HUANCAVELICA","count":21}],
+        "2020":[{"diris":"LIMA CENTRO","count":1687},{"diris":"LIMA NORTE","count":918},{"diris":"LIMA SUR","count":542},{"diris":"LIMA ESTE","count":530},{"diris":"LORETO","count":409},{"diris":"CALLAO","count":366},{"diris":"LA LIBERTAD","count":278},{"diris":"UCAYALI","count":272},{"diris":"PIURA","count":263},{"diris":"AREQUIPA","count":250},{"diris":"LAMBAYEQUE","count":230},{"diris":"ICA","count":230},{"diris":"SAN MARTIN","count":171},{"diris":"LIMA","count":163},{"diris":"JUNIN","count":147},{"diris":"CUSCO","count":127},{"diris":"AMAZONAS","count":116},{"diris":"ANCASH","count":103},{"diris":"TACNA","count":82},{"diris":"PUNO","count":81},{"diris":"MADRE DE DIOS","count":79},{"diris":"TUMBES","count":65},{"diris":"HUANUCO","count":57},{"diris":"CAJAMARCA","count":56},{"diris":"MOQUEGUA","count":43},{"diris":"AYACUCHO","count":36},{"diris":"APURIMAC","count":22},{"diris":"PASCO","count":22},{"diris":"HUANCAVELICA","count":11}],
+        "2021":[{"diris":"LIMA CENTRO","count":2285},{"diris":"LIMA NORTE","count":1249},{"diris":"LIMA SUR","count":929},{"diris":"LIMA ESTE","count":774},{"diris":"LORETO","count":540},{"diris":"CALLAO","count":534},{"diris":"LA LIBERTAD","count":426},{"diris":"UCAYALI","count":369},{"diris":"SAN MARTIN","count":368},{"diris":"PIURA","count":366},{"diris":"LAMBAYEQUE","count":348},{"diris":"ICA","count":334},{"diris":"AREQUIPA","count":273},{"diris":"LIMA","count":242},{"diris":"AMAZONAS","count":222},{"diris":"JUNIN","count":188},{"diris":"CUSCO","count":179},{"diris":"ANCASH","count":168},{"diris":"MADRE DE DIOS","count":97},{"diris":"CAJAMARCA","count":90},{"diris":"PUNO","count":88},{"diris":"TACNA","count":70},{"diris":"AYACUCHO","count":62},{"diris":"HUANUCO","count":57},{"diris":"TUMBES","count":57},{"diris":"MOQUEGUA","count":55},{"diris":"APURIMAC","count":23},{"diris":"PASCO","count":16},{"diris":"HUANCAVELICA","count":15}],
+        "2022":[{"diris":"LIMA CENTRO","count":2775},{"diris":"LIMA NORTE","count":1496},{"diris":"LIMA SUR","count":1474},{"diris":"LIMA ESTE","count":1107},{"diris":"LORETO","count":658},{"diris":"LA LIBERTAD","count":499},{"diris":"PIURA","count":468},{"diris":"LIMA","count":441},{"diris":"UCAYALI","count":435},{"diris":"CALLAO","count":434},{"diris":"AMAZONAS","count":432},{"diris":"LAMBAYEQUE","count":411},{"diris":"ICA","count":395},{"diris":"AREQUIPA","count":371},{"diris":"SAN MARTIN","count":334},{"diris":"JUNIN","count":249},{"diris":"ANCASH","count":199},{"diris":"CUSCO","count":194},{"diris":"CAJAMARCA","count":130},{"diris":"TUMBES","count":119},{"diris":"MADRE DE DIOS","count":118},{"diris":"HUANUCO","count":101},{"diris":"TACNA","count":93},{"diris":"PUNO","count":92},{"diris":"MOQUEGUA","count":58},{"diris":"AYACUCHO","count":52},{"diris":"APURIMAC","count":33},{"diris":"PASCO","count":32},{"diris":"HUANCAVELICA","count":14}],
+        "2023":[{"diris":"LIMA CENTRO","count":1901},{"diris":"LIMA NORTE","count":1290},{"diris":"LIMA SUR","count":789},{"diris":"LIMA ESTE","count":679},{"diris":"LORETO","count":643},{"diris":"AMAZONAS","count":465},{"diris":"PIURA","count":454},{"diris":"LA LIBERTAD","count":451},{"diris":"CALLAO","count":421},{"diris":"UCAYALI","count":410},{"diris":"LAMBAYEQUE","count":407},{"diris":"ICA","count":402},{"diris":"SAN MARTIN","count":362},{"diris":"AREQUIPA","count":350},{"diris":"LIMA","count":278},{"diris":"JUNIN","count":259},{"diris":"CUSCO","count":205},{"diris":"ANCASH","count":204},{"diris":"CAJAMARCA","count":165},{"diris":"TACNA","count":123},{"diris":"HUANUCO","count":102},{"diris":"TUMBES","count":97},{"diris":"PUNO","count":96},{"diris":"MADRE DE DIOS","count":92},{"diris":"AYACUCHO","count":83},{"diris":"MOQUEGUA","count":52},{"diris":"PASCO","count":52},{"diris":"APURIMAC","count":26},{"diris":"HUANCAVELICA","count":12}],
+        "2024":[{"diris":"LIMA CENTRO","count":1927},{"diris":"LIMA NORTE","count":1155},{"diris":"LIMA ESTE","count":834},{"diris":"LIMA SUR","count":811},{"diris":"LORETO","count":528},{"diris":"AMAZONAS","count":519},{"diris":"LA LIBERTAD","count":497},{"diris":"LAMBAYEQUE","count":428},{"diris":"PIURA","count":413},{"diris":"SAN MARTIN","count":408},{"diris":"ICA","count":398},{"diris":"UCAYALI","count":388},{"diris":"CALLAO","count":372},{"diris":"AREQUIPA","count":341},{"diris":"LIMA","count":255},{"diris":"JUNIN","count":245},{"diris":"CUSCO","count":212},{"diris":"ANCASH","count":170},{"diris":"CAJAMARCA","count":162},{"diris":"TACNA","count":133},{"diris":"HUANUCO","count":121},{"diris":"PUNO","count":121},{"diris":"AYACUCHO","count":93},{"diris":"MADRE DE DIOS","count":80},{"diris":"TUMBES","count":75},{"diris":"PASCO","count":56},{"diris":"MOQUEGUA","count":52},{"diris":"APURIMAC","count":21},{"diris":"HUANCAVELICA","count":12}],
+        "2025":[{"diris":"LIMA CENTRO","count":1338},{"diris":"LIMA NORTE","count":861},{"diris":"LIMA SUR","count":619},{"diris":"LORETO","count":503},{"diris":"LIMA ESTE","count":496},{"diris":"AMAZONAS","count":442},{"diris":"CALLAO","count":378},{"diris":"UCAYALI","count":372},{"diris":"PIURA","count":366},{"diris":"LA LIBERTAD","count":364},{"diris":"LAMBAYEQUE","count":334},{"diris":"AREQUIPA","count":294},{"diris":"ICA","count":284},{"diris":"SAN MARTIN","count":281},{"diris":"JUNIN","count":242},{"diris":"LIMA","count":227},{"diris":"CUSCO","count":206},{"diris":"ANCASH","count":191},{"diris":"CAJAMARCA","count":117},{"diris":"HUANUCO","count":95},{"diris":"PUNO","count":86},{"diris":"TACNA","count":69},{"diris":"MOQUEGUA","count":67},{"diris":"MADRE DE DIOS","count":63},{"diris":"TUMBES","count":60},{"diris":"AYACUCHO","count":46},{"diris":"PASCO","count":32},{"diris":"HUANCAVELICA","count":19},{"diris":"APURIMAC","count":19}]
+      }
+    };
+
+    // Paleta y utilidades
+    const pal = { main:'#26abd3', dark:'#1a7a99', grid:'rgba(20,40,50,0.04)' };
+    function fmt(n){ return n.toLocaleString('es-PE'); }
+    function shadeColor(hex, percent) { const f = parseInt(hex.slice(1),16), t = percent<0?0:255, p=Math.abs(percent)/100; const R = Math.round((t-(f>>16))*p)+(f>>16); const G = Math.round((t-((f>>8)&255))*p)+((f>>8)&255); const B = Math.round((t-(f&255))*p)+(f&255); return "#"+(0x10000 + (R<<16) + (G<<8) + B).toString(16).slice(1); }
+
+    // Estado
+    let selectedYear = RAW_DATA.years[RAW_DATA.years.length - 1];
+    let mainChart = null, trendChart = null;
+    let chartType = 'horizontalBar';
+    let selectedDiris = null;
+
+    // Plugin para mostrar etiquetas de valores en las barras
+    const valueLabelsPlugin = { 
+      id:'valueLabels', 
+      afterDatasetsDraw(chart){ 
+        const {ctx} = chart; 
+        const indexAxis = chart.options.indexAxis || 'x'; 
+        const ds = chart.data.datasets[0]; 
+        const meta = chart.getDatasetMeta(0); 
+        if(!meta || !meta.data) return; 
+        ctx.save(); 
+        ctx.font = 'bold 11px Inter, Arial';
+        ctx.fillStyle = pal.dark; 
+        meta.data.forEach((bar,i)=>{ 
+          const val = ds.data[i]; 
+          if(val == null) return; 
+          const p = bar.getProps ? bar.getProps(['x','y','base','width','height'], true) : {x:bar.x, y:bar.y, base:bar.base, width:bar.width, height:bar.height}; 
+          const text = fmt(val);
+          
+          if(indexAxis === 'y'){ // Gráfico horizontal
+            const x1 = Math.max(p.base, p.x); 
+            const y = p.y; 
+            ctx.textAlign = 'left'; 
+            ctx.textBaseline = 'middle'; 
+            ctx.fillText(text, x1 + 8, y); 
+          }else{ // Gráfico vertical
+            const yTop = Math.min(p.base, p.y); 
+            const x = p.x; 
+            ctx.textAlign = 'center'; 
+            ctx.textBaseline = 'bottom'; 
+            ctx.fillText(text, x, yTop - 6); 
+          } 
+        }); 
+        ctx.restore(); 
+      }
+    };
+
+    // --- Funciones para construir UI ---
+    function fmtNum(n){ return fmt(n); }
+    function getYearTotal(year){ const idx = RAW_DATA.years.indexOf(year); return idx >= 0 ? RAW_DATA.year_counts[idx] : 0; }
+    function getYearDiris(year){ 
+      const arr = (RAW_DATA.diris_by_year[String(year)] || []).slice(); 
+      arr.sort((a,b)=>b.count - a.count); 
+      const idxLC = arr.findIndex(r=>r.diris === 'LIMA CENTRO'); 
+      if(idxLC > 0){ const [lc] = arr.splice(idxLC,1); arr.unshift(lc); } 
+      return arr; 
+    }
+
+    function fillYearSelect(){
+      const sel = document.getElementById('yearSelect'); sel.innerHTML = '';
+      RAW_DATA.years.forEach(y => { 
+        const opt = document.createElement('option'); 
+        opt.value = y; 
+        opt.textContent = y; 
+        if(y === selectedYear) opt.selected = true; 
+        sel.appendChild(opt); 
+      });
+      document.getElementById('yearLabel').textContent = selectedYear;
+    }
+
+    function buildSummary(){
+      const box = document.getElementById('summaryCards'); box.innerHTML = '';
+      const totalAll = RAW_DATA.year_counts.reduce((a,b)=>a+b,0);
+      const currentTotal = getYearTotal(selectedYear);
+      const cards = [
+        {label:'Total nacional (2019–2025)', value: totalAll},
+        {label:`Inicios TAR · ${selectedYear}`, value: currentTotal},
+        {label:'Año con mayor inicios', value: (()=>{ let max=-1, my=null; RAW_DATA.years.forEach((y,i)=>{ if(RAW_DATA.year_counts[i] > max){ max = RAW_DATA.year_counts[i]; my = y; } }); return `${my} · ${fmt(max)}`; })()}
+      ];
+      cards.forEach(c=>{ 
+        const el=document.createElement('div'); 
+        el.className='stat-card'; 
+        el.innerHTML = `<div class="stat-label">${c.label}</div><div class="stat-value">${typeof c.value === 'number' ? fmtNum(c.value) : c.value}</div>`; 
+        box.appendChild(el); 
+      });
+      document.getElementById('dirisTitle').textContent = `DIRIS · Año ${selectedYear}`;
+    }
+
+    function drawMainChart(){
+      const dataArr = getYearDiris(selectedYear);
+      const labels = dataArr.map(r=>r.diris);
+      const values = dataArr.map(r=>r.count);
+      const totalYear = getYearTotal(selectedYear);
+      const canvas = document.getElementById('mainChart');
+      const isHorizontal = (chartType === 'horizontalBar');
+      const isLine = (chartType === 'line');
+      
+      if(mainChart) mainChart.destroy();
+      
+      const bg = labels.map(l=> l === 'LIMA CENTRO' ? pal.main : (l.startsWith('LIMA')||l==='CALLAO' ? shadeColor(pal.main, -8) : shadeColor(pal.main, -18)));
+      const border = bg.map(()=> pal.dark);
+      
+      mainChart = new Chart(canvas.getContext('2d'), {
+        type: isLine ? 'line' : 'bar',
+        data: { 
+          labels, // Los nombres de DIRIS están en las etiquetas
+          datasets: [{ 
+            label: `Inicios TAR ${selectedYear}`, 
+            data: values, 
+            backgroundColor: isLine ? 'transparent' : bg, 
+            borderColor: isLine ? pal.main : border, 
+            borderWidth: isLine ? 2 : 1, 
+            borderRadius: isLine ? 0 : 4,
+            barPercentage: isHorizontal ? 0.75 : 0.7,
+            categoryPercentage: isHorizontal ? 0.85 : 0.8,
+            tension: 0.35, 
+            fill: false,
+            pointBackgroundColor: isLine ? pal.main : undefined,
+            pointBorderColor: isLine ? pal.dark : undefined,
+            pointRadius: isLine ? 4 : undefined
+          }] 
+        },
+        options: {
+          indexAxis: isHorizontal ? 'y' : 'x',
+          responsive: true, 
+          maintainAspectRatio: false,
+          plugins:{ 
+            legend: { display: false }, 
+            tooltip: {
+              callbacks: { 
+                label: (ctx)=>{ 
+                  const v = ctx.parsed[ ctx.raw instanceof Array ? 0 : (isHorizontal ? 'x':'y') ]; 
+                  const part = totalYear ? (v/totalYear*100).toFixed(1) : '0.0'; 
+                  return ` ${fmtNum(v)} inicios (${part}%)`; 
+                } 
+              } 
+            } 
+          },
+          scales:{ 
+            x:{ 
+              type: 'linear', // Para gráficos verticales y de línea, el eje X debe ser linear
+              grid:{ color: pal.grid }, 
+              ticks:{ 
+                color: pal.dark,
+                font: { size: 11 },
+                callback: function(value) {
+                  // En todos los casos, el eje X muestra números formateados
+                  return fmtNum(value);
+                }
+              },
+              title: {
+                display: true,
+                text: 'Inicios TAR',
+                color: pal.dark,
+                font: { size: 12 }
+              }
+            }, 
+            y:{ 
+              type: 'category', // Para gráficos verticales y de línea, el eje Y debe ser category
+              grid:{ color: pal.grid }, 
+              ticks:{ 
+                color: pal.dark,
+                font: { size: 11 },
+                // Para gráficos verticales y de línea, mostrar los nombres de DIRIS
+                callback: function(value, index) {
+                  return labels[index];
+                }
+              },
+              title: {
+                display: true,
+                text: 'DIRIS',
+                color: pal.dark,
+                font: { size: 12 }
+              }
+            } 
+          },
+          onClick: (evt, elems)=>{ 
+            if(elems.length){ 
+              const idx = elems[0].index; 
+              selectedDiris = labels[idx]; 
+              renderDetail(); 
+              highlightRowInTable(selectedDiris); 
+            } 
+          }
+        },
+        plugins: [valueLabelsPlugin]
+      });
+      document.getElementById('yearLabel').textContent = selectedYear;
+    }
+
+    function drawTrendChart(){
+      const canvas = document.getElementById('trendChart'); 
+      if(trendChart) trendChart.destroy();
+      const labels = RAW_DATA.years.map(y=>String(y));
+      const data = RAW_DATA.year_counts;
+      const bg = RAW_DATA.years.map(y => y === selectedYear ? pal.main : shadeColor(pal.main, -18));
+      const border = RAW_DATA.years.map(y => y === selectedYear ? pal.dark : shadeColor(pal.dark, -25));
+      trendChart = new Chart(canvas.getContext('2d'), {
+        type: 'bar',
+        data: { 
+          labels, 
+          datasets: [{ 
+            label:'Inicios TAR (nacional)', 
+            data, 
+            backgroundColor: bg, 
+            borderColor: border, 
+            borderWidth: 1, 
+            borderRadius: 6, 
+            barPercentage: 0.6, 
+            categoryPercentage: 0.8 
+          }] 
+        },
+        options: {
+          responsive: true, 
+          maintainAspectRatio: false,
+          plugins:{ 
+            legend: { display: false }, 
+            tooltip: {
+              callbacks: { 
+                label: (ctx)=>` ${fmtNum(ctx.parsed.y)} inicios` 
+              } 
+            } 
+          },
+          scales:{ 
+            x:{ 
+              grid:{ color: pal.grid }, 
+              ticks:{ color: pal.dark } 
+            }, 
+            y:{ 
+              beginAtZero: true, 
+              grid:{ color: pal.grid }, 
+              ticks:{ 
+                color: pal.dark,
+                callback: function(value) {
+                  return fmtNum(value);
+                }
+              } 
+            } 
+          },
+          onClick: (evt, elems)=>{ 
+            if(elems.length){ 
+              const idx = elems[0].index; 
+              const year = RAW_DATA.years[idx]; 
+              if(year !== selectedYear){ 
+                selectedYear = year; 
+                document.getElementById('yearSelect').value = String(selectedYear); 
+                selectedDiris = null; 
+                updateAllViews(false); 
+                drawTrendChart(); 
+              } 
+            } 
+          }
+        },
+        plugins: [valueLabelsPlugin]
+      });
+    }
+
+    function renderTableForYear(){
+      const tbody = document.querySelector('#regionTable tbody');
+      tbody.innerHTML = '';
+      const yearData = getYearDiris(selectedYear);
+      const totalYear = getYearTotal(selectedYear) || 1;
+      const frag = document.createDocumentFragment();
+      
+      yearData.forEach(r=>{
+        const tr = document.createElement('tr');
+        tr.dataset.diris = r.diris;
+        if(r.diris === 'LIMA CENTRO') tr.classList.add('highlight');
+        const td0 = document.createElement('td'); td0.textContent = r.diris;
+        const td1 = document.createElement('td'); td1.textContent = fmtNum(r.count);
+        const td2 = document.createElement('td'); td2.textContent = ( (r.count / totalYear * 100).toFixed(1) ) + '%';
+        tr.appendChild(td0); tr.appendChild(td1); tr.appendChild(td2);
+        tr.addEventListener('click', ()=>{ selectedDiris = r.diris; renderDetail(); highlightRowInTable(r.diris); });
+        frag.appendChild(tr);
+      });
+      tbody.appendChild(frag);
+
+      const footer = document.getElementById('tableFooter');
+      footer.textContent = `Año seleccionado: ${selectedYear} · Total nacional: ${fmtNum(getYearTotal(selectedYear))} inicios · Filas mostradas: ${yearData.length}`;
+    }
+
+    function highlightRowInTable(diris){ 
+      document.querySelectorAll('#regionTable tbody tr').forEach(tr=> 
+        tr.classList.toggle('highlight', tr.dataset.diris === diris)
+      ); 
+    }
+
+    function renderDetail(){
+      const box = document.getElementById('detailBox');
+      if(!selectedDiris){ 
+        box.innerHTML = 'Selecciona una barra del gráfico para ver la participación de la DIRIS en el año elegido.'; 
+        return; 
+      }
+      const yearData = getYearDiris(selectedYear);
+      const reg = yearData.find(r=>r.diris === selectedDiris);
+      if(!reg){ 
+        box.innerHTML = 'Sin datos para la DIRIS seleccionada en este año.'; 
+        return; 
+      }
+      const totalYear = getYearTotal(selectedYear);
+      const part = totalYear ? (reg.count / totalYear * 100).toFixed(1) : '0.0';
+      box.innerHTML = `
+        <div style="margin-bottom:6px;">
+          <strong>${reg.diris}</strong> · Año ${selectedYear}<br/>
+          Inicios TAR: <strong>${fmtNum(reg.count)}</strong>
+        </div>
+        <div class="text-muted">
+          Participación nacional: <strong>${part}%</strong> de ${fmtNum(totalYear)} inicios.
+        </div>`;
+    }
+
+    function updateAllViews(rebuildTrend = true){
+      buildSummary();
+      drawMainChart();
+      renderTableForYear();
+      renderDetail();
+      if(rebuildTrend) drawTrendChart();
+    }
+
+    // Eventos
+    document.getElementById('chartType').addEventListener('change', (e)=>{ 
+      chartType = e.target.value; 
+      drawMainChart(); 
+      if(selectedDiris) highlightRowInTable(selectedDiris); 
+    });
+    
+    document.getElementById('yearSelect').addEventListener('change', (e)=>{ 
+      selectedYear = parseInt(e.target.value,10); 
+      selectedDiris = null; 
+      updateAllViews(); 
+    });
+
+    // Inicialización
+    function init(){
+      fillYearSelect();
+      updateAllViews();
+    }
+    
+    // Inicializar cuando el DOM esté listo
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', init);
+    } else {
+      init();
+    }
+  </script>
+</body>
+</html>
