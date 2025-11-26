@@ -234,7 +234,7 @@
       mainChart = new Chart(canvas.getContext('2d'), {
         type: isLine ? 'line' : 'bar',
         data: { 
-          labels, // Los nombres de DIRIS están en las etiquetas
+          labels, // Los nombres de DIRIS van aquí
           datasets: [{ 
             label: `Inicios TAR ${selectedYear}`, 
             data: values, 
@@ -269,37 +269,48 @@
           },
           scales:{ 
             x:{ 
-              type: 'linear', // Para gráficos verticales y de línea, el eje X debe ser linear
               grid:{ color: pal.grid }, 
               ticks:{ 
                 color: pal.dark,
                 font: { size: 11 },
-                callback: function(value) {
-                  // En todos los casos, el eje X muestra números formateados
-                  return fmtNum(value);
+                // Para gráficos verticales y línea, el eje X muestra los nombres de DIRIS
+                callback: function(value, index) {
+                  if (isHorizontal) {
+                    // En horizontal: eje X muestra números
+                    return fmtNum(value);
+                  } else {
+                    // En vertical y línea: eje X muestra nombres de DIRIS
+                    return this.getLabelForValue(value);
+                  }
                 }
               },
               title: {
                 display: true,
-                text: 'Inicios TAR',
+                text: isHorizontal ? 'Inicios TAR' : 'DIRIS',
                 color: pal.dark,
                 font: { size: 12 }
               }
             }, 
             y:{ 
-              type: 'category', // Para gráficos verticales y de línea, el eje Y debe ser category
+              beginAtZero: true, 
               grid:{ color: pal.grid }, 
               ticks:{ 
                 color: pal.dark,
                 font: { size: 11 },
-                // Para gráficos verticales y de línea, mostrar los nombres de DIRIS
+                // Para gráficos horizontales, el eje Y muestra los nombres de DIRIS
                 callback: function(value, index) {
-                  return labels[index];
+                  if (isHorizontal) {
+                    // En horizontal: eje Y muestra nombres de DIRIS
+                    return this.getLabelForValue(value);
+                  } else {
+                    // En vertical y línea: eje Y muestra números
+                    return fmtNum(value);
+                  }
                 }
               },
               title: {
                 display: true,
-                text: 'DIRIS',
+                text: isHorizontal ? 'DIRIS' : 'Inicios TAR',
                 color: pal.dark,
                 font: { size: 12 }
               }
